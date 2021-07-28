@@ -127,4 +127,6 @@ for mu1 = 0:(mult1-1)
     end
 end
 
+psi_out = psi_out / sqrt(num_mu); % Correct the normalisation
+
 end
