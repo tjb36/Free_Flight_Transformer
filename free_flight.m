@@ -120,6 +120,7 @@ for mu1 = 0:(mult1-1)
             J2 = mod( mult2*J2, M2_32 );
             J3 = mod( mult3*J3, M3_32 );
             ind_prime = mod( ( J3 + M3_32*(J2 + M2_32*J1) ) , M_32 ) + 1;
+            fieldmu = reshape( permute(fieldmu,[3,1,2]) , [M 1] ); % Convert 3D form back to 1D form, ready to use index ind_prime
             psi_out = psi_out +  permute( reshape( fieldmu(ind_prime), [M3,M2,M1] ) , [2,3,1] ) .* (xfac1 .* xfac2 .* xfac3) * dtfac; % psi_out is 3D array
             
             %%% PREVIOUS UNVECTORIZED SECTION %%%
