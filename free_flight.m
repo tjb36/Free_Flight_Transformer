@@ -5,6 +5,12 @@ M2 = size(psi_in,1); % Number of points in y direction
 M3 = size(psi_in,3); % Number of points in z direction
 M = M1 * M2 * M3;    % Total number of grid points
 
+M1_32 = uint32( M1 );
+M2_32 = uint32( M2 );
+M3_32 = uint32( M3 );
+M_32 = uint32( M );
+IND = uint32( 0:(M_32-1) );
+
 num_mu = mult1 * mult2 * mult3;   % Total number of terms in sum
 
 % Original lattice lengths
@@ -75,7 +81,7 @@ kdafac2 = exp( i * k2o * (a2-a2o) );
 kdafac3 = exp( i * k3o * (a3-a3o) );
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-psi_out = zeros(M,1); % Preallocate
+psi_out = zeros(M2,M1,M3); % Preallocate
 
 for mu1 = 0:(mult1-1)
     for mu2 = 0:(mult2-1)
@@ -105,24 +111,33 @@ for mu1 = 0:(mult1-1)
             fieldmu = fieldmu .* (Ekfac1.*Ekfac2.*Ekfac3) .* (kdafac1.*kdafac2.*kdafac3) .* (kofac1.*kofac2.*kofac3); % kernel for B in Eq. (42c)
             fieldmu = ifftn(fieldmu);	                          % produces B in Eq. (42c)
             
-
+            
             % Final loop calculates f in Eq. 42b and accumulates to sum in Eq. 42a
-            % (THIS PART NOT VECTORIZED YET)
-            fieldmu = reshape( permute(fieldmu,[3,1,2]) , [M 1] ); % Convert 3D form back to 1D form, ready for last loop
-            for cur_x_i=1:M
-                j1 = floor(floor((cur_x_i-1)/M3)/M2) + 1;   % index on new lattice
-                j2 = mod( floor((cur_x_i-1)/M3) , M2 ) + 1; % -1 and +1 used to allow Matlab's [1] start indexing, but still retain Deuar's formulas
-                j3 = mod( (cur_x_i-1) , M3 ) + 1;
-                jbar1 = mult1*(j1-1);		                % index jbar on the "big" virtual lattice
-                jbar2 = mult2*(j2-1);	            
-                jbar3 = mult3*(j3-1);               
-                n1prime = mod(jbar1,M1);                % index n' on the transfromed mu lattice part
-                n2prime = mod(jbar2,M2);        
-                n3prime = mod(jbar3,M3);        
-                primed_x_i = mod( (n3prime+M3*(n2prime+M2*n1prime)) , M ) + 1;       % index in Eq. (42e)
-                f = xfac1(j1) * xfac2(j2) * xfac3(j3) * dtfac;             % produces f in Eq. (42b)
-                psi_out(cur_x_i) = psi_out(cur_x_i) + f * fieldmu(primed_x_i); % produces psi in Eq. (42a)
-            end
+            J1 = idivide( idivide(IND, M3_32), M2_32 ); % idivide to avoid "double" casting, does "fix" rounding
+            J2 = mod( idivide( IND, M3_32 ), M2_32 ); 
+            J3 = mod( IND, M3_32 );
+            J1 = mod( mult1*J1, M1_32 );
+            J2 = mod( mult2*J2, M2_32 );
+            J3 = mod( mult3*J3, M3_32 );
+            ind_prime = mod( ( J3 + M3_32*(J2 + M2_32*J1) ) , M_32 ) + 1;
+            psi_out = psi_out +  permute( reshape( fieldmu(ind_prime), [M3,M2,M1] ) , [2,3,1] ) .* (xfac1 .* xfac2 .* xfac3) * dtfac; % psi_out is 3D array
+            
+            %%% PREVIOUS UNVECTORIZED SECTION %%%
+%             fieldmu = reshape( permute(fieldmu,[3,1,2]) , [M 1] ); % Convert 3D form back to 1D form, ready for last loop
+%             for cur_x_i=1:M
+%                 j1 = floor(floor((cur_x_i-1)/M3)/M2) + 1;   % index on new lattice
+%                 j2 = mod( floor((cur_x_i-1)/M3) , M2 ) + 1; % -1 and +1 used to allow Matlab's [1] start indexing, but still retain Deuar's formulas
+%                 j3 = mod( (cur_x_i-1) , M3 ) + 1;
+%                 jbar1 = mult1*(j1-1);		                % index jbar on the "big" virtual lattice
+%                 jbar2 = mult2*(j2-1);	            
+%                 jbar3 = mult3*(j3-1);               
+%                 n1prime = mod(jbar1,M1);                % index n' on the transfromed mu lattice part
+%                 n2prime = mod(jbar2,M2);        
+%                 n3prime = mod(jbar3,M3);        
+%                 primed_x_i = mod( (n3prime+M3*(n2prime+M2*n1prime)) , M ) + 1;       % index in Eq. (42e)
+%                 f = xfac1(j1) * xfac2(j2) * xfac3(j3) * dtfac;             % produces f in Eq. (42b)
+%                 psi_out(cur_x_i) = psi_out(cur_x_i) + f * fieldmu(primed_x_i); % produces psi in Eq. (42a)
+%             end
             
         end
     end
