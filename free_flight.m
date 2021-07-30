@@ -100,27 +100,28 @@ for mu1 = 0:(mult1-1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             
-            fieldmu = psi_in .* xofac1 .* xofac2 .* xofac3;        % produces kernel for A in Eq. (42d)
+            fieldmu = psi_in .* xofac1 .* xofac2 .* xofac3;     % produces kernel for A in Eq. (42d)
             fieldmu = fftn(fieldmu);	                           % produces A in Eq. (42d)
             fieldmu = fieldmu .* (Ekfac1.*Ekfac2.*Ekfac3) .* (kdafac1.*kdafac2.*kdafac3) .* (kofac1.*kofac2.*kofac3); % kernel for B in Eq. (42c)
-            fieldmu = ifftn(fieldmu);	                           % produces B in Eq. (42c)
-            fieldmu = reshape( permute(fieldmu,[3,1,2]) , [M 1] ); % Convert 3D form back to 1D form, ready for last loop
+            fieldmu = ifftn(fieldmu);	                          % produces B in Eq. (42c)
+            
 
             % Final loop calculates f in Eq. 42b and accumulates to sum in Eq. 42a
-            % (THIS PART NOT VECTORIZED YET %
+            % (THIS PART NOT VECTORIZED YET)
+            fieldmu = reshape( permute(fieldmu,[3,1,2]) , [M 1] ); % Convert 3D form back to 1D form, ready for last loop
             for cur_x_i=1:M
-                j1 = floor(floor((cur_x_i-1)/M3)/M2);   % index on new lattice
-                j2 = mod( floor((cur_x_i-1)/M3) , M2 ); % -1 and +1 used to allow Matlab's [1] start indexing, but still retain Deuar's formulas
-                j3 = mod( (cur_x_i-1) , M3 );
-                jbar1 = mult1*j1;		                % index jbar on the "big" virtual lattice
-                jbar2 = mult2*j2;	            
-                jbar3 = mult3*j3;               
+                j1 = floor(floor((cur_x_i-1)/M3)/M2) + 1;   % index on new lattice
+                j2 = mod( floor((cur_x_i-1)/M3) , M2 ) + 1; % -1 and +1 used to allow Matlab's [1] start indexing, but still retain Deuar's formulas
+                j3 = mod( (cur_x_i-1) , M3 ) + 1;
+                jbar1 = mult1*(j1-1);		                % index jbar on the "big" virtual lattice
+                jbar2 = mult2*(j2-1);	            
+                jbar3 = mult3*(j3-1);               
                 n1prime = mod(jbar1,M1);                % index n' on the transfromed mu lattice part
                 n2prime = mod(jbar2,M2);        
                 n3prime = mod(jbar3,M3);        
-                primed_x_i = mod( (n3prime+M3*(n2prime+M2*n1prime)) , M );       % index in Eq. (42e)
-                f = xfac1(j1+1) * xfac2(j2+1) * xfac3(j3+1) * dtfac;             % produces f in Eq. (42b)
-                psi_out(cur_x_i) = psi_out(cur_x_i) + f * fieldmu(primed_x_i+1); % produces psi in Eq. (42a)
+                primed_x_i = mod( (n3prime+M3*(n2prime+M2*n1prime)) , M ) + 1;       % index in Eq. (42e)
+                f = xfac1(j1) * xfac2(j2) * xfac3(j3) * dtfac;             % produces f in Eq. (42b)
+                psi_out(cur_x_i) = psi_out(cur_x_i) + f * fieldmu(primed_x_i); % produces psi in Eq. (42a)
             end
             
         end
